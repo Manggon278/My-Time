@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>นาฬิกาเรียลไทม์</title>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Chakra Petch', sans-serif;
+    }
+
+    body {
+      background: radial-gradient(ellipse at bottom, #121212 0%, #000000 100%);
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .clock-container {
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(0,0,0,0.4);
+    }
+
+    .date {
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      color: #ccc;
+    }
+
+    .time {
+      font-size: 3em;
+      font-weight: bold;
+      color: #00e5ff;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .digit {
+      display: inline-block;
+      overflow: hidden;
+      height: 1em;
+      position: relative;
+      width: 1ch;
+    }
+
+    .digit span {
+      display: block;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+    }
+
+    .digit .old {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .digit .new {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+
+    .digit.animate .old {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    .digit.animate .new {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="clock-container">
+  <div class="date" id="date"></div>
+  <div class="time" id="time"></div>
+</div>
+
+<script>
+  // === Particle Background ===
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  class Particle {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.vx = (Math.random() - 0.5) * 0.5;
+      this.vy = (Math.random() - 0.5) * 0.5;
+      this.radius = Math.random() * 2 + 0.5;
+      this.alpha = Math.random() * 0.5 + 0.2;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+        this.reset();
+      }
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+      ctx.fill();
+    }
+  }
+
+  function initParticles(num) {
+    particles = [];
+    for (let i = 0; i < num; i++) particles.push(new Particle());
+  }
+
+  function animateParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let p of particles) {
+      p.update();
+      p.draw();
+    }
+    requestAnimationFrame(animateParticles);
+  }
+
+  initParticles(100);
+  animateParticles();
+</script>
+
+<script>
+  const timeEl = document.getElementById("time");
+  const dateEl = document.getElementById("date");
+  let lastTimeStr = "";
+
+  function formatTimeComponent(value) {
+    return value.toString().padStart(2, '0');
+  }
+
+  function updateClock() {
+    const now = new Date();
+    const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+    const months = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ];
+
+    const day = days[now.getDay()];
+    const date = now.getDate();
+    const month = months[now.getMonth()];
+    const year = now.getFullYear();
+    dateEl.textContent = `วัน${day}ที่ ${date} ${month} ${year}`;
+
+    const h = formatTimeComponent(now.getHours());
+    const m = formatTimeComponent(now.getMinutes());
+    const s = formatTimeComponent(now.getSeconds());
+    const timeStr = `${h}:${m}:${s}`;
+
+    // Build each digit with animation
+    timeEl.innerHTML = "";
+    for (let i = 0; i < timeStr.length; i++) {
+      const newChar = timeStr[i];
+      const oldChar = lastTimeStr[i] || "";
+      const span = document.createElement("span");
+      if (newChar === ":") {
+        span.textContent = ":";
+        span.style.padding = "0 5px";
+        timeEl.appendChild(span);
+        continue;
+      }
+
+      const digit = document.createElement("div");
+      digit.className = "digit";
+
+      const oldSpan = document.createElement("span");
+      oldSpan.className = "old";
+      oldSpan.textContent = oldChar;
+
+      const newSpan = document.createElement("span");
+      newSpan.className = "new";
+      newSpan.textContent = newChar;
+
+      digit.appendChild(oldSpan);
+      digit.appendChild(newSpan);
+
+      if (newChar !== oldChar) {
+        digit.classList.add("animate");
+      }
+
+      timeEl.appendChild(digit);
+    }
+
+    lastTimeStr = timeStr;
+  }
+
+  setInterval(updateClock, 1000);
+  updateClock();
+</script>
+
+</body>
+</html>
